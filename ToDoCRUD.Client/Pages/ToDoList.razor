@@ -1,0 +1,39 @@
+﻿@page "/ToDoList"
+@rendermode InteractiveWebAssembly
+
+<h3>ToDoList</h3>
+
+<input placeholder="What do you want to do?" @bind=inputText />
+<button class="btn btn-primary" @onclick="AddToList">Add To List</button>
+
+<ul>
+	@foreach (var item in ToDoItems)
+	{
+		<li>
+			<input type="checkbox" @bind="item.IsDone" />
+			@item.Text
+			<button class="btn btn-primary" @onclick="@(() => DeleteFromList(item))">Delete</button>
+		</li>
+	}
+</ul>
+
+@code {
+    string inputText = "";
+    private int IdCounter = 0;
+    public List<ToDoLogic> ToDoItems = new List<ToDoLogic>();
+
+    private void AddToList()
+    {
+        if (!string.IsNullOrWhiteSpace(inputText))
+        {
+            ToDoItems.Add(new ToDoLogic { Text = inputText, IsDone = false, Id = IdCounter });
+            IdCounter++;
+            inputText = "";
+        }
+    }
+
+    private void DeleteFromList(ToDoLogic item)
+    {
+        ToDoItems.Remove(item);
+    }
+}
