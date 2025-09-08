@@ -1,8 +1,10 @@
-﻿public class ToDoLogic
+﻿namespace ToDoCRUD.Client.Models
 {
-    public string Text { get; set; }
-    public bool IsDone { get; set; }
-    public int Id { get; set; }
-
+    public class ToDoItem
+    {
+        public int Id { get; set; }
+        public string Text { get; set; }
+        public bool IsDone { get; set; }
+    }
 }
 

@@ -1,39 +1,94 @@
 ﻿@page "/ToDoList"
 @rendermode InteractiveWebAssembly
+@inject HttpClient Http
 
 <h3>ToDoList</h3>
 
-<input placeholder="What do you want to do?" @bind=inputText />
+<input placeholder="What do you want to do?" @bind="inputText" />
 <button class="btn btn-primary" @onclick="AddToList">Add To List</button>
 
 <ul>
-	@foreach (var item in ToDoItems)
-	{
-		<li>
-			<input type="checkbox" @bind="item.IsDone" />
-			@item.Text
-			<button class="btn btn-primary" @onclick="@(() => DeleteFromList(item))">Delete</button>
-		</li>
-	}
+    @if (ToDoItems is null)
+    {
+        <li>Loading...</li>
+    }
+    else if (!ToDoItems.Any())
+    {
+        <li>No items</li>
+    }
+    else
+    {
+        @foreach (var item in ToDoItems)
+        {
+            <li class="mb-2">
+                <input type="checkbox" checked="@item.IsDone" @onchange="@(e => ToggleDone(item))" />
+                <span class="ms-2">@item.Text</span>
+                <button class="btn btn-sm btn-danger ms-3" @onclick="@(() => DeleteFromList(item))">Delete</button>
+            </li>
+        }
+    }
 </ul>
 
 @code {
-    string inputText = "";
-    private int IdCounter = 0;
-    public List<ToDoLogic> ToDoItems = new List<ToDoLogic>();
+    private string inputText = "";
+    private List<ToDoCRUD.Client.Models.ToDoItem>? ToDoItems;
 
-    private void AddToList()
+    protected override async Task OnInitializedAsync()
     {
-        if (!string.IsNullOrWhiteSpace(inputText))
+        await LoadItemsAsync();
+    }
+
+    private async Task LoadItemsAsync()
+    {
+        ToDoItems = await Http.GetFromJsonAsync<List<ToDoCRUD.Client.Models.ToDoItem>>("api/TodoItems")
+                    ?? new List<ToDoCRUD.Client.Models.ToDoItem>();
+        StateHasChanged();
+    }
+
+    private async Task AddToList()
+    {
+        if (string.IsNullOrWhiteSpace(inputText))
+            return;
+
+        var newItem = new ToDoCRUD.Client.Models.ToDoItem { Text = inputText, IsDone = false };
+
+        var resp = await Http.PostAsJsonAsync("api/TodoItems", newItem);
+        if (resp.IsSuccessStatusCode)
         {
-            ToDoItems.Add(new ToDoLogic { Text = inputText, IsDone = false, Id = IdCounter });
-            IdCounter++;
+            var created = await resp.Content.ReadFromJsonAsync<ToDoCRUD.Client.Models.ToDoItem>();
+            if (created != null)
+            {
+                ToDoItems!.Add(created);
+            }
             inputText = "";
+        }
+        else
+        {
+            // handle error (log/show)
         }
     }
 
-    private void DeleteFromList(ToDoLogic item)
+    private async Task DeleteFromList(ToDoCRUD.Client.Models.ToDoItem item)
     {
-        ToDoItems.Remove(item);
+        var resp = await Http.DeleteAsync($"api/TodoItems/{item.Id}");
+        if (resp.IsSuccessStatusCode)
+        {
+            ToDoItems!.Remove(item);
+        }
+        else
+        {
+            // handle error
+        }
+    }
+
+    private async Task ToggleDone(ToDoCRUD.Client.Models.ToDoItem item)
+    {
+        item.IsDone = !item.IsDone;
+        var resp = await Http.PutAsJsonAsync($"api/TodoItems/{item.Id}", item);
+        if (!resp.IsSuccessStatusCode)
+        {
+            // revert change on failure
+            item.IsDone = !item.IsDone;
+        }
     }
 }
